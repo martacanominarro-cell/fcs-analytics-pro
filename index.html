@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FCS Analytics Pro V7</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <style>
+        .multipanel-container { display: flex; gap: 0.5rem; background: white; padding: 1rem; border-radius: 0.5rem; overflow-x: auto; }
+        .panel-wrapper { display: flex; flex-direction: column; align-items: center; flex: 1; min-width: 300px; border-right: 1px solid #f1f5f9; padding: 0 0.5rem; }
+        .panel-wrapper:last-child { border-right: none; }
+        .panel-chart { height: 650px; width: 100%; margin-bottom: 0.5rem; }
+        .controls-row { display: flex; flex-wrap: wrap; gap: 0.5rem; justify-content: center; margin-bottom: 0.5rem; width: 100%; }
+        .mini-control { font-size: 0.85rem; font-weight: 600; color: #1e293b; display: flex; align-items: center; gap: 0.4rem; cursor: pointer; }
+        .axis-input { width: 70px; font-size: 0.8rem; padding: 0.3rem; border: 1px solid #cbd5e1; border-radius: 0.3rem; }
+        .btn-sm { padding: 0.5rem 1rem; font-size: 0.85rem; border-radius: 0.4rem; background: #e2e8f0; color: #0f172a; font-weight: 600; cursor: pointer; border: none; transition: background 0.2s; }
+        .btn-sm:hover { background: #cbd5e1; }
+        .dist-section { display: flex; gap: 2rem; align-items: stretch; }
+        .dist-chart-wrapper { flex: 2; min-width: 400px; }
+        .dist-controls { flex: 1; padding: 1.5rem; background: #f1f5f9; border-radius: 0.5rem; color: #1e293b; height: fit-content; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>FCS Analytics Pro <span style="font-size: 1rem; opacity: 0.5;">V7.0</span></h1>
+            <p style="color: #94a3b8;">High-Fidelity Comparative Pipeline (Custom Axes & Export)</p>
+        </header>
+
+        <main>
+            <!-- 1. DATA -->
+            <section class="card">
+                <h2 class="section-title">1. Data Selection</h2>
+                <div class="input-group">
+                    <input type="file" id="fcs-upload-v7" multiple accept=".fcs,.csv" style="display: none;" onchange="v7HandleFiles(this)">
+                    <button class="btn-primary" style="width: 100%; padding: 3rem; font-size: 1.5rem;" onclick="document.getElementById('fcs-upload-v7').click()">
+                        📁 Select Files from your Mac
+                    </button>
+                    <div id="v7-status-area" style="margin-top: 1.5rem; display: none; padding: 1rem; background: rgba(34, 197, 94, 0.1); border-radius: 0.5rem; border: 1px solid var(--success);">
+                        <p id="v7-status-text" style="color: var(--success); font-weight: 700;"></p>
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label>Target Channel</label>
+                    <select id="v7-channel" style="width: 100%; padding: 0.8rem; background: #0f172a; border: 1px solid var(--border); color: white; border-radius: 0.5rem;">
+                        <option value="B525-H">B525-H</option>
+                    </select>
+                </div>
+            </section>
+
+            <!-- 2. GROUPS -->
+            <section class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+                    <div>
+                        <h2 class="section-title" style="margin-bottom: 0;">2. Grouping Configuration</h2>
+                    </div>
+                    <button class="btn-secondary" onclick="v7AddGroup()">+ Add Sample Group</button>
+                </div>
+                <div id="v7-group-list" class="sample-groups-list"></div>
+                <div id="v7-run-section" style="margin-top: 3rem; text-align: center; display: none;">
+                    <button class="btn-primary" style="padding: 1.5rem 5rem; font-size: 1.4rem;" onclick="v7RunAnalysis()">🚀 Execute Analysis</button>
+                </div>
+            </section>
+
+            <!-- 3. RESULTS -->
+            <div id="v7-results" style="display: none;">
+                <!-- Sample Filtering UI -->
+                <div id="v7-sample-filters" style="margin-bottom: 1.5rem;"></div>
+
+                <section class="card pub-quality-card">
+                    <h2 class="section-title">Full Pairwise Comparisons</h2>
+                    <div class="multipanel-container">
+                        <div class="panel-wrapper">
+                            <div class="controls-row">
+                                <label class="mini-control"><input type="checkbox" id="log-mean" onchange="v7UpdateAxes()" checked> Log Y</label>
+                                <input type="number" id="min-mean" placeholder="Min Y" class="axis-input" onchange="v7UpdateAxes()">
+                                <input type="number" id="max-mean" placeholder="Max Y" class="axis-input" onchange="v7UpdateAxes()">
+                            </div>
+                            <div id="plot-mean" class="panel-chart"></div>
+                            <button class="btn-sm" onclick="v7DownloadPlot('plot-mean', 'Mean_Plot')">📥 Save PNG</button>
+                        </div>
+                        <div class="panel-wrapper">
+                            <div class="controls-row">
+                                <label class="mini-control"><input type="checkbox" id="log-median" onchange="v7UpdateAxes()" checked> Log Y</label>
+                                <input type="number" id="min-median" placeholder="Min Y" class="axis-input" onchange="v7UpdateAxes()">
+                                <input type="number" id="max-median" placeholder="Max Y" class="axis-input" onchange="v7UpdateAxes()">
+                            </div>
+                            <div id="plot-median" class="panel-chart"></div>
+                            <button class="btn-sm" onclick="v7DownloadPlot('plot-median', 'Median_Plot')">📥 Save PNG</button>
+                        </div>
+                        <div class="panel-wrapper">
+                            <div class="controls-row">
+                                <label class="mini-control"><input type="checkbox" id="log-kurtosis" onchange="v7UpdateAxes()"> Log Y</label>
+                                <input type="number" id="min-kurtosis" placeholder="Min Y" class="axis-input" onchange="v7UpdateAxes()">
+                                <input type="number" id="max-kurtosis" placeholder="Max Y" class="axis-input" onchange="v7UpdateAxes()">
+                            </div>
+                            <div id="plot-kurtosis" class="panel-chart"></div>
+                            <button class="btn-sm" onclick="v7DownloadPlot('plot-kurtosis', 'Kurtosis_Plot')">📥 Save PNG</button>
+                        </div>
+                        <div class="panel-wrapper">
+                            <div class="controls-row">
+                                <label class="mini-control"><input type="checkbox" id="log-cv" onchange="v7UpdateAxes()"> Log Y</label>
+                                <input type="number" id="min-cv" placeholder="Min Y" class="axis-input" onchange="v7UpdateAxes()">
+                                <input type="number" id="max-cv" placeholder="Max Y" class="axis-input" onchange="v7UpdateAxes()">
+                            </div>
+                            <div id="plot-cv" class="panel-chart"></div>
+                            <button class="btn-sm" onclick="v7DownloadPlot('plot-cv', 'CV_Plot')">📥 Save PNG</button>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="card pub-quality-card">
+                    <h2 class="section-title">Population Heterogeneity</h2>
+                    <div class="dist-section">
+                        <div class="dist-chart-wrapper">
+                            <div id="v7-dist-plot" style="width: 100%;"></div>
+                        </div>
+                        <div class="dist-controls">
+                            <h4 style="margin-bottom: 1rem;">Plot Settings</h4>
+                            <label class="mini-control"><input type="checkbox" id="toggle-dist-log" onchange="v7UpdateAxes()" checked> Heterogeneity: Log Y-Axis</label>
+                            
+                            <div class="controls-row" style="margin-top: 1rem; margin-bottom: 1.5rem; justify-content: flex-start;">
+                                <input type="number" id="min-dist" placeholder="Min Y" class="axis-input" onchange="v7UpdateAxes()">
+                                <input type="number" id="max-dist" placeholder="Max Y" class="axis-input" onchange="v7UpdateAxes()">
+                            </div>
+
+                            <button class="btn-sm" onclick="v7DownloadPlot('v7-dist-plot', 'Heterogeneity_Plot')">📥 Save Heterogeneity Plot PNG</button>
+                        </div>
+                    </div>
+                </section>
+                
+                <section class="card pub-quality-card">
+                    <h2 class="section-title">Statistical Summary</h2>
+                    <table id="v7-table">
+                        <thead><tr><th>Sample</th><th>N</th><th>Mean (± SEM)</th><th>Median</th><th>Kurtosis</th><th>CV (%)</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                    <p style="margin-top: 1rem; font-size: 0.85rem; color: #64748b; font-style: italic; text-align: center;">
+                        * Statistical significance determined by Independent Student's T-test. ns: p &gt; 0.05, *: p &le; 0.05, **: p &le; 0.01, ***: p &le; 0.001, ****: p &le; 0.0001.
+                    </p>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <div id="v7-loading" class="loading-overlay">
+        <div style="text-align: center;">
+            <div style="width: 50px; height: 50px; border: 5px solid var(--accent); border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto;"></div>
+            <p style="margin-top: 1.5rem; font-weight: 700; color: var(--accent);">Processing...</p>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
