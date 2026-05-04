@@ -11,12 +11,6 @@ from typing import List, Dict, Any
 from scipy.stats import kurtosis, skew, ttest_ind
 import json
 
-# Monkeypatch for fcsparser / numpy 2.0 compatibility
-if not hasattr(np.ndarray, 'newbyteorder'):
-    def fixed_newbyteorder(self, order='S'):
-        return self.byteswap(inplace=False).view(self.dtype.newbyteorder(order))
-    np.ndarray.newbyteorder = fixed_newbyteorder
-
 app = FastAPI(title="FCS Analysis API")
 
 app.add_middleware(

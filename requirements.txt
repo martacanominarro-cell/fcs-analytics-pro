@@ -4,3 +4,4 @@ pandas
 fcsparser
 scipy
 python-multipart
+numpy<2.0.0
